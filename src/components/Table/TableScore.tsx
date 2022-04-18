@@ -7,76 +7,44 @@ import {
   TableCell,
   Paper,
 } from '@mui/material';
-import { Player } from '../../types';
 
-type Props = {
-  round: number;
-  listPlayer: Player[];
-};
+import useScoreStore, { ScoreStore } from 'store';
+import { Player, Score, StyleSheet } from 'types';
+import { groupBy } from 'utils/array';
 
-const ListMain = ({ round, listPlayer }: Props) => {
-  const listColumn = listPlayer.map((player) => ({
-    header: player.name,
-  }));
+const TableScore = () => {
+  const listPlayer: Player[] = useScoreStore(
+    (state: ScoreStore) => state.players,
+  );
 
-  const getListScore = (round: number) => {
-    const listScore = [];
-    for (let i = 1; i < round; i++) {
-      const listScoreTmp = [];
-      for (let j = 0; j < listColumn.length; j++) {
-        const player = listPlayer.find(
-          (player) => player.name === listColumn[j].header,
-        );
-        if (player) {
-          const score = player.scores.find((sc) => sc.round === i);
-          if (score) {
-            listScoreTmp.push(score.score);
-          } else {
-            listScoreTmp.push(0);
-          }
-        } else {
-          listScoreTmp.push(0);
-        }
-      }
-      listScore.push(listScoreTmp);
-    }
-    return listScore;
+  const listHeader: string[] = listPlayer.map((player: Player) => player.name);
+
+  const getListScore = (): Score[][] => {
+    const listScore: Score[] = listPlayer
+      .map((player: Player) => player.scores)
+      .flat();
+
+    const listScoreByRound = groupBy<Score>(
+      listScore,
+      (score) => `${score.round}`,
+    );
+    return listScoreByRound;
   };
 
-  const getSumScoreByPlayer = (player: Player): number => {
-    return player.scores.reduce((total, player) => (total += player.score), 0);
-  };
-
-  const getListScoreTotal = (): number[] => {
-    return listPlayer.map((player) => getSumScoreByPlayer(player));
-  };
+  const getListScoreTotal = (): number[] =>
+    listPlayer.map((player) => player.total);
 
   return (
     <TableContainer component={Paper}>
-      <Table sx={{ minWidth: 650 }} aria-label='simple table'>
+      <Table>
         <TableHead>
           <TableRow>
-            {listColumn.length > 0 && (
-              <TableCell
-                sx={{
-                  width: 10,
-                  fontSize: '1rem',
-                  fontWeight: 600,
-                  color: '#fff',
-                  backgroundColor: '#298be6',
-                }}
-                align='center'
-              >
-                Round
-              </TableCell>
+            {listHeader.length > 0 && (
+              <TableCell sx={styles.titleRound}>#</TableCell>
             )}
-            {listColumn.map((col, index) => (
-              <TableCell
-                sx={{ fontSize: '1rem', fontWeight: 600 }}
-                key={index}
-                align='center'
-              >
-                {col.header}
+            {listHeader.map((col, index) => (
+              <TableCell sx={styles.cellRound} key={index}>
+                {col}
               </TableCell>
             ))}
           </TableRow>
@@ -84,47 +52,20 @@ const ListMain = ({ round, listPlayer }: Props) => {
         <TableBody>
           {listPlayer.length > 0 && (
             <TableRow>
-              <TableCell
-                align='center'
-                sx={{
-                  backgroundColor: '#f1f1f1',
-                }}
-              ></TableCell>
+              <TableCell sx={styles.titleTotal}></TableCell>
               {getListScoreTotal().map((cell, index) => (
-                <TableCell
-                  key={index}
-                  align='center'
-                  sx={{
-                    fontSize: '1rem',
-                    color: '#fff',
-                    fontWeight: 600,
-                    backgroundColor: '#e6b429',
-                  }}
-                >
+                <TableCell key={index} sx={styles.cellTotal}>
                   {cell}
                 </TableCell>
               ))}
             </TableRow>
           )}
-          {getListScore(round).map((row, indexRow) => (
-            <TableRow
-              key={indexRow}
-              sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
-            >
-              <TableCell
-                sx={{
-                  width: 10,
-                  fontSize: '1rem',
-                  fontWeight: 600,
-                  backgroundColor: '#f1f1f1',
-                }}
-                align='center'
-              >
-                {indexRow + 1}
-              </TableCell>
-              {row.map((score, indexScore) => (
+          {getListScore().map((row: Score[], indexRow: number) => (
+            <TableRow key={indexRow} sx={styles.row}>
+              <TableCell sx={styles.round}>{indexRow + 1}</TableCell>
+              {row.map((score: Score, indexScore: number) => (
                 <TableCell key={indexScore} align='center'>
-                  {score}
+                  {score.score}
                 </TableCell>
               ))}
             </TableRow>
@@ -135,4 +76,43 @@ const ListMain = ({ round, listPlayer }: Props) => {
   );
 };
 
-export default ListMain;
+const styles: StyleSheet = {
+  titleRound: {
+    width: 10,
+    fontSize: '1rem',
+    fontWeight: 600,
+    color: '#fff',
+    backgroundColor: '#298be6',
+    textAlign: 'center',
+  },
+
+  cellRound: {
+    fontSize: '1rem',
+    fontWeight: 600,
+    textAlign: 'center',
+  },
+
+  titleTotal: {
+    backgroundColor: '#f1f1f1',
+    textAlign: 'center',
+  },
+  cellTotal: {
+    fontSize: '1rem',
+    color: '#fff',
+    fontWeight: 600,
+    backgroundColor: '#e6b429',
+    textAlign: 'center',
+  },
+
+  row: { '&:last-child td, &:last-child th': { border: 0 } },
+
+  round: {
+    width: 10,
+    fontSize: '1rem',
+    fontWeight: 600,
+    backgroundColor: '#f1f1f1',
+    textAlign: 'center',
+  },
+};
+
+export default TableScore;

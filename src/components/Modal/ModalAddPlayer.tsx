@@ -1,144 +1,131 @@
-import { useState, useEffect, ChangeEvent } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
-  Box,
   Button,
   Dialog,
   DialogTitle,
   DialogContent,
-  TextField,
+  DialogActions,
 } from '@mui/material';
-import { Score, Player } from '../../types';
+import SaveIcon from '@mui/icons-material/Save';
+
+import { Score, Player, StyleSheet } from 'types';
+import useDebounce from 'hooks/useDebounce';
+import useScoreStore, { ScoreStore } from 'store';
+import ItemAddPlayer from 'components/Shared/ItemAddPlayer';
 
 type Props = {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (listPlayer: Player[]) => void;
 };
 
 type InputPlayer = Player & { id: string };
 
-const ModalAddPlayer = ({ isOpen, onClose, onSubmit }: Props) => {
+const ModalAddPlayer = ({ isOpen, onClose }: Props) => {
   const [listInputPlayer, setListInputPlayer] = useState<InputPlayer[]>(
     [] as InputPlayer[],
   );
 
-  const handleChange = (
-    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-  ): void => {
-    const id = event.target.name;
-    const currentName = event.target.value;
+  const addPlayers = useScoreStore((state: ScoreStore) => state.addPlayers);
+
+  const handleChange = useCallback((id: string, name: string) => {
     const existingPlayerIndex = listInputPlayer.findIndex(
-      (player) => player.id === event.target.name,
+      (player: InputPlayer) => player.id === id,
     );
 
     if (existingPlayerIndex >= 0) {
-      listInputPlayer[existingPlayerIndex].name = currentName;
+      listInputPlayer[existingPlayerIndex].name = name;
     } else {
       listInputPlayer.push({
         id,
-        name: currentName,
+        name,
         scores: [] as Score[],
         total: 0,
       });
     }
 
-    setListInputPlayer([...listInputPlayer]);
-  };
+    const list = listInputPlayer
+      .filter(
+        (inputPlayer: InputPlayer, index: number, self: InputPlayer[]) =>
+          inputPlayer.name !== '' &&
+          index === self.findIndex((_) => _.name === inputPlayer.name),
+      )
+      .sort((player1, player2) => player1.id.localeCompare(player2.id));
 
-  const getListPlayer = (): Player[] =>
-    listInputPlayer.map(
-      (player) =>
-        ({
-          name: player.name,
-          scores: player.scores,
-          total: player.total,
-        } as Player),
-    );
+    setListInputPlayer(list);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const getListPlayer = useCallback(
+    (listInputPlayer: InputPlayer[]): Player[] =>
+      listInputPlayer.map(
+        (player) =>
+          ({
+            name: player.name,
+            scores: player.scores,
+            total: player.total,
+          } as Player),
+      ),
+    [],
+  );
+
+  const [handleSetPlayers] = useDebounce(() => {
+    addPlayers(getListPlayer(listInputPlayer));
+    onClose();
+  });
 
   useEffect(() => {
     setListInputPlayer([]);
   }, [isOpen]);
 
   return (
-    <Dialog open={isOpen} onClose={onClose} keepMounted={false}>
-      <DialogTitle
-        sx={{
-          fontWeight: 'bold',
-          fontSize: '1.25rem',
-          backgroundColor: '#1976d2',
-          color: '#fff',
-        }}
-      >
-        Add Player
-      </DialogTitle>
+    <Dialog open={isOpen} onClose={onClose}>
+      <DialogTitle sx={styles.title}>Add Player</DialogTitle>
       <DialogContent>
-        <TextField
-          autoFocus
-          label='Player 1'
-          name='player1'
-          type='text'
-          fullWidth
-          onChange={(e) => handleChange(e)}
-          variant='standard'
-          sx={{
-            my: 1,
-          }}
-        />
-
-        <TextField
-          autoFocus
-          label='Player 2'
-          name='player2'
-          type='text'
-          fullWidth
-          onChange={(e) => handleChange(e)}
-          variant='standard'
-          sx={{
-            my: 1,
-          }}
-        />
-
-        <TextField
-          autoFocus
-          label='Player 3'
-          name='player3'
-          type='text'
-          fullWidth
-          onChange={(e) => handleChange(e)}
-          variant='standard'
-          sx={{
-            my: 1,
-          }}
-        />
-
-        <TextField
-          autoFocus
-          label='Player 4'
-          name='player4'
-          type='text'
-          fullWidth
-          onChange={(e) => handleChange(e)}
-          variant='standard'
-          sx={{
-            my: 1,
-          }}
-        />
-
-        <Box
-          sx={{
-            display: 'flex',
-            justifyContent: 'flex-end',
-            minWidth: '400px',
-            my: 1,
-          }}
-        >
-          <Button variant='contained' onClick={() => onSubmit(getListPlayer())}>
-            Add
-          </Button>
-        </Box>
+        {Array.from({ length: 4 }, (_, i) => i + 1).map((num) => (
+          <ItemAddPlayer
+            key={num}
+            autoFocus={num === 1}
+            label={`Player ${num}`}
+            name={`player${num}`}
+            type='text'
+            fullWidth
+            onSetName={handleChange}
+            variant='standard'
+          />
+        ))}
       </DialogContent>
+      <DialogActions sx={styles.action}>
+        <Button variant='outlined' size='medium' onClick={onClose}>
+          Cancel
+        </Button>
+        <Button
+          variant='contained'
+          size='medium'
+          startIcon={<SaveIcon />}
+          onClick={handleSetPlayers}
+        >
+          Add
+        </Button>
+      </DialogActions>
     </Dialog>
   );
+};
+
+const styles: StyleSheet = {
+  title: {
+    py: 2,
+    fontWeight: 600,
+    fontSize: '1.4rem',
+    backgroundColor: '#1976d2',
+    color: '#fff',
+  },
+
+  action: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    mr: 2,
+    mb: 1,
+  },
 };
 
 export default ModalAddPlayer;
